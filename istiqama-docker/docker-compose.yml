@@ -1,0 +1,91 @@
+version: '3'
+
+networks:
+  default:
+    name: local-network
+    external: true
+
+services:
+  udruzenja:
+    build:
+      context: ./
+      dockerfile: dockerfiles/nginx.dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    expose:
+      - 80
+    environment:
+        - VIRTUAL_HOST=istiqama.ba
+    volumes:
+      - ../:/var/www/html
+    container_name: istiqama
+    links:
+      - istiqama-php:php
+      - istiqama-mysql:mysql
+      - istiqama-redis:redis
+      - istiqama-mailpit:mailpit
+
+  istiqama-mysql:
+    image: mariadb:10.6
+    restart: unless-stopped
+    tty: true
+    expose:
+      - 3306
+    environment:
+      MYSQL_DATABASE: istiqama
+      MYSQL_USER: root
+      MYSQL_PASSWORD: bax503553
+      MYSQL_ROOT_PASSWORD: bax503553
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ../_database:/var/lib/mysql
+    container_name: istiqama-mysql
+
+  istiqama-phpmyadmin:
+      image: phpmyadmin:5.2
+      environment:
+        - PMA_ARBITRARY=1
+        - PMA_HOST=mysql
+        - PMA_USER=root
+        - PMA_PASSWORD=bax503553
+        - PMA_PORT=3306
+        - VIRTUAL_HOST=phpmyadmin.istiqama.ba
+      expose:
+        - 80
+      container_name: istiqama-phpmyadmin
+      links:
+        - istiqama-mysql:mysql
+        - istiqama-redis:redis
+
+  istiqama-php:
+    build:
+      context: ./
+      dockerfile: dockerfiles/php.dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    volumes:
+      - ../:/var/www/html
+    container_name: istiqama-php8.2
+    expose:
+      - 9000
+    links:
+      - istiqama-mysql:mysql
+      - istiqama-redis:redis
+      - istiqama-mailpit:mailpit
+
+  istiqama-redis:
+    image: redis:alpine
+    restart: unless-stopped
+    container_name: istiqama-redis
+    expose:
+      - 6379
+
+  istiqama-mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1028:1025"
+      - "8028:8025"
+    container_name: istiqama-mailpit
