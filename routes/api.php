@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,5 +18,18 @@ use App\Http\Controllers\Api\UserController;
 |
 */
 
+Route::group(["middleware" => "auth:sanctum"], function () {
+    Route::get('/auth/user', function (Request $request) {
+       return $request->user();
+    });
+
+    Route::post('/auth/logout', function (Request $request) {
+        $request->user()->currentAccessToken()->delete();
+        return response()->noContent();
+    });
+});
+
 Route::post('/auth/register', [UserController::class, 'createUser']);
+
+// Route::post('/auth/login', [UserController::class, 'loginUser']);
 Route::post('/auth/login', [UserController::class, 'loginUser']);
