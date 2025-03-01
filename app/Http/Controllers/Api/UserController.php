@@ -115,42 +115,53 @@ class UserController extends Controller
     }
 
     public function forgotPassword(Request $request): JsonResponse
-    {
-        // Validate the request
-        $validator = Validator::make($request->all(), [
-            'email' => ['required', 'email']
-        ]);
+{
+    // Validate the request
+    $validator = Validator::make($request->all(), [
+        'email' => ['required', 'email']
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+    if ($validator->fails()) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Validation failed',
+            'errors' => $validator->errors()
+        ], 422);
+    }
 
-        // Check if the user exists
-        $user = User::where('email', $request->email)->first();
-        if (!$user) {
-            return response()->json([
-                'status' => false,
-                'message' => 'User not found',
-                'errors' => ['email' => ['The provided email does not exist.']]
-            ], 404);
-        }
+    // Check if the user exists
+    $user = User::where('email', $request->email)->first();
+    if (!$user) {
+        return response()->json([
+            'status' => false,
+            'message' => 'User not found',
+            'errors' => ['email' => ['The provided email does not exist.']]
+        ], 404);
+    }
 
-        // Send the password reset link
+    // Send the password reset link
+    try {
+        Log::info('Sending password reset link to: ' . $request->email);
         $status = Password::sendResetLink(
             $request->only('email')
         );
-
-        // Check the status and return the appropriate response
-        if ($status != Password::RESET_LINK_SENT) {
-            throw ValidationException::withMessages([
-                'email' => [__($status)],
-            ]);
-        }
-
-        return response()->json(['status' => __($status)]);
+        Log::info('Password reset link status: ' . $status);
+    } catch (\Exception $e) {
+        Log::error('Error sending password reset link:', ['error' => $e->getMessage()]);
+        return response()->json([
+            'status' => false,
+            'message' => 'Internal Server Error',
+            'error' => $e->getMessage()
+        ], 500);
     }
+
+    // Check the status and return the appropriate response
+    if ($status != Password::RESET_LINK_SENT) {
+        throw ValidationException::withMessages([
+            'email' => [__($status)],
+        ]);
+    }
+
+    return response()->json(['status' => __($status)]);
+}
 }
